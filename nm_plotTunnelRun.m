@@ -20,6 +20,7 @@ function [fh,ah,pH] = nm_plotTunnelRun(TRdata)
             fh.Position = [850 680 850 500];
     end
 
+    ah(1).NextPlot = 'add';
     yPosA = ah(1).Position(2); % save this for later
     ah(1).Position(2) = ah(1).Position(2) + 0.20;
     ah(1).Position(4) = ah(1).Position(4) - 0.20;
