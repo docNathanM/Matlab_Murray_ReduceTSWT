@@ -8,21 +8,27 @@ p = inputParser;
 
 defaultDoRebuild = false;
 validInputNum = @(x) isnumeric(x);
+defaultPathToCSV = 'DATA_WTC-0';
 
 addRequired(p,'runNumIN',validInputNum);
 addParameter(p,'reloadCSV',defaultDoRebuild,@(x) islogical(x));
+addParameter(p,'pathToCSV',defaultPathToCSV,@(x) isfolder(x));
 
 parse(p,runNumIN,varargin{:})
 
 runNum = p.Results.runNumIN;
 doRebuild = p.Results.reloadCSV;
+pathToCSV = p.Results.pathToCSV;
 
-% %% Debug
-% clear variables
-% runNum = 5;
+%% Debug
+clear variables
+pathToCSV = 'DATA_WTC_runData';
+doRebuild = true;
+runNum = 2931;
+%%
 
 matFileName = sprintf('Run%d.mat',runNum);
-pathToMATfiles = 'TunnelRunData_MAT';
+pathToMATfiles = [pathToCSV '_MAT'];
 
 if ( ~doRebuild && ...
         exist(fullfile(pathToMATfiles,matFileName),'file') == 2 )
@@ -34,7 +40,7 @@ else
 csvFileName = sprintf('Run%d.csv',runNum);
 
 %% Open the text file.
-fileID = fopen(fullfile('TunnelRunData_CSV',csvFileName),'r');
+fileID = fopen(fullfile(pathToCSV,csvFileName),'r');
 
 %% Determine Range of Data and the line where Configuration Data starts
 % The CSV files have a break after the end of the log data with a listing
@@ -49,7 +55,8 @@ tLine = fgetl(fileID);
 if ( contains(tLine,'Run Time Limit') || ...
      contains(tLine,'Shutdown (PB010)') || ...
      contains(tLine,'Low Storage Pressure') || ...
-     contains(tLine,'Po Valve Full Open') )
+     contains(tLine,'Po Valve Full Open') || ...
+     contains(tLine,'MS Program Complete') )
     
 TRdata.doTR = true;
     
@@ -352,13 +359,20 @@ function [runStart,runEnd,varCalc] = findSteady(tD)
 % Looking for the longest steady portion of the run.
 % First step ... get the wD-point variance in the Ptotal_psia
 
+% 2023-04-27 NEM I was finding the edges of tT/max(tT), but that was not
+% robust for large Pzero set points, so I am grabbing the set point from
+% the tunnelConfig information and changing the edge finding to be based on
+% tT./PsetPt ... see below ...
+PsetPt = str2num(tD.tunnelConfig.commandPzero_psi);
+
 wD = 5;
 tT = zeros(1,length(tD.time_sec));
 for n = ((wD-1)/2)+1:length(tD.time_sec)-((wD-1)/2)
     tT(n) = var(tD.Ptotal_psia_vals(n-((wD-1)/2):n+((wD-1)/2)));
 end
 % Step 2 find the longest portion
-b = [0 diff(tT/max(tT) < 0.01)];
+% b = [0 diff(tT/max(tT) < 0.0001)];
+b = [0 diff(tT./PsetPt < 0.01)];
 a = find(b);
 if (b(a(1)) < 0)
     a = a(2:end);
@@ -371,9 +385,9 @@ d = find(c == max(c)); % longest segment
 runStart = tD.time_sec(a(2*d-1)) + 0.5;
 runEnd = tD.time_sec(a(2*d)) - 0.5;
 
-if ( isfield(tD,'P0state') )
-    runStart = max(runStart,min(tD.time_sec(tD.P0state==7)));
-    runEnd = min(runEnd,max(tD.time_sec(tD.P0state==7)));
+if ( isfield(tD,'state') )
+    runStart = max(runStart,min(tD.time_sec(tD.state.Postate==7)));
+    runEnd = min(runEnd,max(tD.time_sec(tD.state.Postate==7)));
 end
 
 varCalc.movingVar = tT';
