@@ -286,6 +286,14 @@ if ( isfield(dS,'Postate') )
     TRdata.P0state = dS.Postate;
 end
 
+if ( isfield(dS,'MSstate') )
+    TRdata.MSstate = dS.MSstate;
+end
+
+if ( numel(unique(dS.MS_Pt)) > 1 )
+    TRdata.AoA_SRV400 = dS.SRV400;
+end
+
 TRdata.WTCdataAll = dS;
 
 %% Determine the Steady Portion of the Run
