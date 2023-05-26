@@ -7,25 +7,36 @@ function [TRdata] = nm_loadTR(runNumIN,varargin)
 p = inputParser;
 
 defaultDoRebuild = false;
-validInputNum = @(x) isnumeric(x);
-defaultPathToCSV = 'DATA_WTC-0';
+
+% 20230523 I'm using the features of dir() to go ahead and look for the
+% file in the validation step to see if it is available ...
+validInputNum = @(x) ~isempty(dir(['**/' sprintf('Run%d.csv',runNumIN)]));
+
+% 20230523 I don't think I need this anymore ... now the code finds the
+% path of the data using the dir() function ...
+% defaultPathToCSV = 'DATA_WTC-0';
 
 addRequired(p,'runNumIN',validInputNum);
 addParameter(p,'reloadCSV',defaultDoRebuild,@(x) islogical(x));
-addParameter(p,'pathToCSV',defaultPathToCSV,@(x) isfolder(x));
+% addParameter(p,'pathToCSV',defaultPathToCSV,@(x) isfolder(x));
 
 parse(p,runNumIN,varargin{:})
 
 runNum = p.Results.runNumIN;
 doRebuild = p.Results.reloadCSV;
-pathToCSV = p.Results.pathToCSV;
+% pathToCSV = p.Results.pathToCSV;
 
-%% Debug
-clear variables
-pathToCSV = 'DATA_WTC_runData';
-doRebuild = true;
-runNum = 2931;
-%%
+% %% Debug
+% clear variables
+% pathToCSV = 'DATA_WTC_runData';
+% doRebuild = true;
+% runNum = 2931;
+
+%% FIND File ... and Set PATHs
+
+csvFileName = sprintf('Run%d.csv',runNum);
+dirCSV = dir(['**/' csvFileName]);
+pathToCSV = dirCSV.folder;
 
 matFileName = sprintf('Run%d.mat',runNum);
 pathToMATfiles = [pathToCSV '_MAT'];
@@ -36,8 +47,6 @@ if ( ~doRebuild && ...
     TRdata = load(fullfile(pathToMATfiles,matFileName));
     
 else
-
-csvFileName = sprintf('Run%d.csv',runNum);
 
 %% Open the text file.
 fileID = fopen(fullfile(pathToCSV,csvFileName),'r');
