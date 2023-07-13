@@ -389,7 +389,7 @@ for n = ((wD-1)/2)+1:length(tD.time_sec)-((wD-1)/2)
 end
 % Step 2 find the longest portion
 % b = [0 diff(tT/max(tT) < 0.0001)];
-b = [0 diff(tT./PsetPt < 0.01)];
+b = [0 diff(tT./PsetPt < 0.015)];
 a = find(b);
 if (b(a(1)) < 0)
     a = a(2:end);
