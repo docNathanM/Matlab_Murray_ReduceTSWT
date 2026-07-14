@@ -4,6 +4,7 @@ function [TRdata] = nm_loadTR(runNumIN,varargin)
 % the run. The input to the function is the numeric run number of interest.
 
 %% PARSE Input
+try % use this to catch input parser errors ... if the input runNum errors out it will go to the catch statement and return an doTR = false TR struct.
 p = inputParser;
 
 defaultDoRebuild = false;
@@ -39,7 +40,8 @@ dirCSV = dir(['**/' csvFileName]);
 pathToCSV = dirCSV.folder;
 
 matFileName = sprintf('Run%d.mat',runNum);
-pathToMATfiles = [pathToCSV '_MAT'];
+% pathToMATfiles = [pathToCSV '_MAT'];
+pathToMATfiles = strrep(pathToCSV,'_CSV','_MAT');
 
 if ( ~doRebuild && ...
         exist(fullfile(pathToMATfiles,matFileName),'file') == 2 )
@@ -369,6 +371,16 @@ save(saveAsName,'-struct','TRdata')
 
 end
 
+catch ME
+
+    TRdata.TR = runNumIN;
+    TRdata.doTR = false;
+    TRdata.RunMsg = 'Run Not Found';
+    % saveAsName = fullfile(pathToMATfiles,sprintf('Run%d.mat',TRdata.TR));
+    % save(saveAsName,'-struct','TRdata')
+
+end % end of try/catch 
+
 end
 
 function [runStart,runEnd,varCalc] = findSteady(tD)
@@ -390,25 +402,31 @@ end
 % Step 2 find the longest portion
 % b = [0 diff(tT/max(tT) < 0.0001)];
 b = [0 diff(tT./PsetPt < 0.015)];
-a = find(b);
-if (b(a(1)) < 0)
-    a = a(2:end);
-    if (b(a(end)) > 0)
-        a = a(1:end-1);
+if ( ~isempty(find(b)) )
+    a = find(b);
+    if (b(a(1)) < 0)
+        a = a(2:end);
+        if (b(a(end)) > 0)
+            a = a(1:end-1);
+        end
     end
+    c = a(2:2:end)-a(1:2:end); % segment lengths
+    d = find(c == max(c)); % longest segment
+    runStart = tD.time_sec(a(2*d-1)) + 0.5;
+    runEnd = tD.time_sec(a(2*d)) - 0.5;
+    
+    if ( isfield(tD,'state') )
+        runStart = max(runStart,min(tD.time_sec(tD.state.Postate==7)));
+        runEnd = min(runEnd,max(tD.time_sec(tD.state.Postate==7)));
+    end
+    
+    varCalc.movingVar = tT';
+    varCalc.diff = b';
+else
+    runStart = [];
+    runEnd = [];
+    varCalc = [];
 end
-c = a(2:2:end)-a(1:2:end); % segment lengths
-d = find(c == max(c)); % longest segment
-runStart = tD.time_sec(a(2*d-1)) + 0.5;
-runEnd = tD.time_sec(a(2*d)) - 0.5;
-
-if ( isfield(tD,'state') )
-    runStart = max(runStart,min(tD.time_sec(tD.state.Postate==7)));
-    runEnd = min(runEnd,max(tD.time_sec(tD.state.Postate==7)));
-end
-
-varCalc.movingVar = tT';
-varCalc.diff = b';
 
 end
 
